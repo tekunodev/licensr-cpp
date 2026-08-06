@@ -47,11 +47,14 @@ set(LICENSR_SOURCES
     src/detail/base64url.cpp
     src/detail/json.cpp
     src/detail/client.cpp
+    src/detail/hwid_support.cpp
+    src/detail/token_store.cpp
     src/detail/crypto/ed25519/ed25519_verify.cpp
     src/detail/crypto/ed25519/fe.cpp
     src/detail/crypto/ed25519/ge.cpp
     src/detail/crypto/ed25519/sc.cpp
     src/detail/crypto/ed25519/sha512.cpp
+    src/detail/crypto/sha256.cpp
 )
 
 if(LICENSR_HTTP_BACKEND_RESOLVED STREQUAL "WINHTTP")
@@ -60,6 +63,14 @@ elseif(LICENSR_HTTP_BACKEND_RESOLVED STREQUAL "NSURLSESSION")
   list(APPEND LICENSR_SOURCES src/detail/http/http_transport_nsurlsession.mm)
 elseif(LICENSR_HTTP_BACKEND_RESOLVED STREQUAL "CURL")
   list(APPEND LICENSR_SOURCES src/detail/http/http_transport_curl.cpp)
+endif()
+
+if(WIN32)
+  list(APPEND LICENSR_SOURCES src/hwid_windows.cpp)
+elseif(APPLE)
+  list(APPEND LICENSR_SOURCES src/hwid_macos.cpp)
+else()
+  list(APPEND LICENSR_SOURCES src/hwid_linux.cpp)
 endif()
 
 if(LICENSR_BUILD_SHARED)
@@ -112,6 +123,17 @@ elseif(LICENSR_HTTP_BACKEND_RESOLVED STREQUAL "CURL")
   target_link_libraries(licensr PRIVATE CURL::libcurl)
 elseif(NOT LICENSR_HTTP_BACKEND_RESOLVED STREQUAL "NONE")
   message(FATAL_ERROR "Unknown LICENSR_HTTP_BACKEND: ${LICENSR_HTTP_BACKEND_RESOLVED}")
+endif()
+
+# HWID: IOKit/CoreFoundation for IOPlatformUUID (macOS), advapi32 for the
+# registry-backed MachineGuid lookup (Windows). Linux's /etc/machine-id
+# needs no extra library.
+if(APPLE)
+  find_library(IOKIT_LIBRARY IOKit REQUIRED)
+  find_library(COREFOUNDATION_LIBRARY CoreFoundation REQUIRED)
+  target_link_libraries(licensr PRIVATE ${IOKIT_LIBRARY} ${COREFOUNDATION_LIBRARY})
+elseif(WIN32)
+  target_link_libraries(licensr PRIVATE advapi32)
 endif()
 
 message(STATUS "Licensr C++ SDK: HTTP backend = ${LICENSR_HTTP_BACKEND_RESOLVED}")

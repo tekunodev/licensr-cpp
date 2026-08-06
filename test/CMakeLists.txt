@@ -4,8 +4,11 @@ add_executable(licensr_tests
     test_client.cpp
     test_ed25519.cpp
     test_http_transport.cpp
+    test_hwid.cpp
     test_json.cpp
+    test_sha256.cpp
     test_singleton.cpp
+    test_token_store.cpp
 )
 
 target_link_libraries(licensr_tests PRIVATE licensr::licensr)

@@ -100,6 +100,51 @@ Available hooks: `on_validated`, `on_activated`, `on_deactivated`, `on_token_iss
 - `kApi` — non-2xx response with a parsed error body. `status` is the HTTP status, `code` is one of the documented error codes in `contract/conformance.yaml` (e.g. `license_inactive`, `origin_not_allowed`, `rate_limit_exceeded`) — branch on `code`, not `message`. `retry_after_seconds` is set on some `429` responses.
 - `kNetwork` — the request never got a response: DNS/connect/TLS failure, timeout, or retries were exhausted.
 
+## Hardware IDs
+
+`licensr::compute_hardware_id(salt)` reads a platform-specific machine identifier — `IOPlatformUUID` (macOS/iOS), `MachineGuid` + system volume serial (Windows), `/etc/machine-id` (Linux) — and returns `sha256(salt + raw_id)` as a lowercase hex string, so the real platform identifier never leaves the process:
+
+```cpp
+#include <licensr/hwid.h>
+
+std::string device_id = licensr::compute_hardware_id(config.plugin_slug).value_or(generate_and_persist_a_fallback_uuid());
+
+config.device_id = device_id;  // buckets rate limits per installation
+
+licensr::ActivateRequest request;
+request.activation_type = licensr::ActivationType::kSeat;
+request.identifier = device_id;  // ties the seat activation to this machine
+```
+
+Use a stable, plugin-specific `salt` (your `plugin_slug` is a reasonable default) — the same machine produces a different, uncorrelatable identifier for a different `salt`. `compute_hardware_id` returns `std::nullopt` under restricted permissions or an unusual sandbox; fall back to a self-generated UUID you persist yourself (e.g. via `FileTokenStore` below, or your plugin's own settings storage) in that case.
+
+## Token storage
+
+`FileTokenStore` (implements `TokenStore`) caches a string blob — typically the token from `Client::token`'s `TokenResult::token` — per license key, under a per-plugin directory in the platform's app-data location (`~/Library/Application Support/Licensr/<plugin_slug>/` on macOS, `%APPDATA%\Licensr\<plugin_slug>\` on Windows, `$XDG_DATA_HOME/licensr/<plugin_slug>/` on Linux):
+
+```cpp
+#include <licensr/token_store.h>
+
+licensr::FileTokenStore store(config.plugin_slug);
+store.save(license_key, token_result.token);
+
+// Later, e.g. on next launch, before any network call has succeeded:
+if (auto cached = store.load(license_key)) {
+  // Offline verification (parsing + Ed25519 signature check) lands in a
+  // follow-up SDK module — for now, treat a cache hit as "known-good as of
+  // last successful token() call" and re-validate online to confirm it's
+  // still current.
+}
+```
+
+AUv3 app extensions run in their own sandboxed container, separate from the host app's — the default path above resolves to the *extension's* container, not the host's. Pass an explicit `base_dir` (your app group's shared container, or the extension's own Application Support directory) in that case:
+
+```cpp
+licensr::FileTokenStore store(config.plugin_slug, auv3_container_path);
+```
+
+Bring your own `TokenStore` implementation instead if your host already has its own persistence (a DAW's plugin-state chunk, a keychain wrapper).
+
 ## HTTP transport
 
 Licensr picks a platform default at CMake configure time (`LICENSR_HTTP_BACKEND`, default `AUTO`): WinHTTP on Windows, NSURLSession on macOS/iOS, libcurl on Linux. All three ride the OS's own TLS/certificate store rather than vendoring one. Set `LICENSR_HTTP_BACKEND=NONE` and supply `ClientConfig::transport` to plug in your own (a DAW host's networking callback, a game engine's HTTP client) — implement `licensr::HttpTransport`, whose single `perform()` method is called synchronously from Licensr's worker thread and must never be invoked from the audio thread.
@@ -118,7 +163,10 @@ Licensr picks a platform default at CMake configure time (`LICENSR_HTTP_BACKEND`
 cmake -S . -B build
 cmake --build build
 ctest --test-dir build          # or: ./build/test/licensr_tests
-clang-format -i $(git ls-files 'include/*.h' 'src/*.cpp' 'src/*.h' 'test/*.cpp' 'test/*.h' | grep -v crypto/ed25519)
+
+# Vendored files under src/detail/crypto/ carry their own nested
+# .clang-format (DisableFormat: true) and are skipped automatically.
+find include src test \( -name '*.h' -o -name '*.cpp' -o -name '*.mm' \) -print0 | xargs -0 clang-format -i
 ```
 
 Build options (`-D<name>=<value>`):

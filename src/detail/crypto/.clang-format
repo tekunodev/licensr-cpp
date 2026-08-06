@@ -1,0 +1,5 @@
+---
+# sha256.{h,cpp} are vendored from LibTomCrypt (see THIRD_PARTY_NOTICES.md)
+# — left in upstream formatting. ed25519/ has its own nested override for
+# the same reason.
+DisableFormat: true
