@@ -6,6 +6,7 @@
 #include <curl/curl.h>
 
 #include <cstring>
+#include <memory>
 
 #include "licensr/http_transport.h"
 

@@ -179,3 +179,29 @@ Build options (`-D<name>=<value>`):
 | `LICENSR_MSVC_RUNTIME_LIBRARY` (MSVC only) | `MultiThreaded$<$<CONFIG:Debug>:Debug>DLL` | Match whatever CRT the rest of your plugin project uses. |
 
 For a macOS universal build: `cmake -S . -B build -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"`.
+
+CI (`.github/workflows/test-sdk-cpp.yaml`) builds and runs this test suite on macOS (universal), Windows (MSVC), and Linux (GCC and Clang) on every push/PR that touches `sdks/cpp/**` or `contract/**`.
+
+### Conformance suite
+
+`test/test_conformance_live.cpp` (plus the minimal YAML parser in `test/conformance/`) runs every case in [`contract/conformance.yaml`](../../contract/README.md) against a real, running backend — the same contract `backend/tests/test_conformance_contract.py` and `sdks/js/test/conformance.test.ts` enforce. It's skipped by default (no live backend in a normal `ctest` run); to run it locally:
+
+```bash
+# 1. Start Postgres + migrate (from repo root)
+docker compose up -d postgres
+cd backend && APP_ENV=dev poetry run alembic upgrade head
+
+# 2. Start the backend (BILLING_PROVIDER=mock avoids needing real Stripe creds)
+APP_ENV=dev BILLING_PROVIDER=mock poetry run uvicorn main:app --port 8080
+
+# 3. Seed fixtures for every case (in another shell)
+poetry run python scripts/seed_conformance_fixtures.py --out /tmp/conformance_fixtures.json
+
+# 4. Run the conformance suite (from sdks/cpp)
+cd ../sdks/cpp
+CONFORMANCE_BASE_URL=http://localhost:8080 \
+CONFORMANCE_FIXTURES_PATH=/tmp/conformance_fixtures.json \
+./build/test/licensr_tests
+```
+
+The `rate_limit_exceeded` case additionally requires `CONFORMANCE_RUN_SLOW=1` (it fires 61 requests to trip the bucket) — the dedicated `conformance` job in CI sets it; a plain local run skips that one case. See `.github/workflows/test-sdk-cpp.yaml` for how CI wires up the same four steps as one job.

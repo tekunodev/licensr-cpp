@@ -8,6 +8,8 @@
 
 #include <dispatch/dispatch.h>
 
+#include <memory>
+
 #include "licensr/http_transport.h"
 
 namespace {
