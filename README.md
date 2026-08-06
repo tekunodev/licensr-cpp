@@ -1,6 +1,6 @@
 # licensr (C++ SDK)
 
-Official C++ SDK for the [Licensr](https://licensr.app) license API, built for audio plugins and other native, closed-source hosts. Zero third-party dependencies: no OpenSSL, no nlohmann/json, no networking library — everything the SDK needs (Ed25519 verification, JSON, HTTP) is either vendored and trimmed to the minimum or backed by the OS's own networking stack.
+Official C++ SDK for the [Licensr](https://licensr.app) license API, built for audio plugins and other native, closed-source hosts. Zero third-party dependencies: no OpenSSL, no nlohmann/json, no networking library — everything the SDK needs (JSON, HTTP, and the Ed25519 primitives that the upcoming offline-verify module will use) is either vendored and trimmed to the minimum or backed by the OS's own networking stack.
 
 See the [plugin integration guide](https://docs.licensr.app/plugin-integration) for the underlying API's concepts (activation modes, entitlement/fallback, rate limits, the embedded-key doctrine) — this README covers the C++-specific surface.
 
