@@ -1,0 +1,4 @@
+---
+# Vendored third-party code (see THIRD_PARTY_NOTICES.md) — left in its
+# upstream formatting so future diffs against orlp/ed25519 stay minimal.
+DisableFormat: true
