@@ -14,19 +14,19 @@ A DAW loads plugins in-process, and two different plugins may both statically li
 
 ## Install
 
-CMake `FetchContent` against the public mirror (once tagged and published):
+CMake `FetchContent` against the public mirror. Pin `GIT_TAG` to a release from
+[tekunodev/licensr-cpp](https://github.com/tekunodev/licensr-cpp/releases) (not `main`).
+If no tag is published yet, vendor `sdks/cpp/` and `add_subdirectory(...)`.
 
 ```cmake
 include(FetchContent)
 FetchContent_Declare(licensr
     GIT_REPOSITORY https://github.com/tekunodev/licensr-cpp.git
-    GIT_TAG v1.0.0
+    GIT_TAG v0.1.0
 )
 FetchContent_MakeAvailable(licensr)
 target_link_libraries(your_plugin PRIVATE licensr::licensr)
 ```
-
-Or vendor `sdks/cpp/` directly and `add_subdirectory(...)`.
 
 ## Quickstart
 
