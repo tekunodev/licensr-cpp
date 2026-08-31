@@ -19,7 +19,7 @@ CMake `FetchContent` against the public mirror (once tagged and published):
 ```cmake
 include(FetchContent)
 FetchContent_Declare(licensr
-    GIT_REPOSITORY https://github.com/licensr/licensr-cpp.git
+    GIT_REPOSITORY https://github.com/tekunodev/licensr-cpp.git
     GIT_TAG v1.0.0
 )
 FetchContent_MakeAvailable(licensr)
