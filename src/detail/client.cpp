@@ -117,18 +117,18 @@ ValidateResult validate_result_from_wire(const licensr::detail::Json& wire) {
   ValidateResult result;
   result.valid = wire.get_bool("valid").value_or(false);
   result.status = license_status_from_string(wire.get_string("status").value_or(""));
-  result.plan_id = get_optional_string(wire, "plan_id");
-  result.plan_name = get_optional_string(wire, "plan_name");
-  if (auto mode = get_optional_string(wire, "activation_mode")) {
-    result.activation_mode = activation_type_from_string(*mode);
-  }
-  result.max_seats = get_optional_int64(wire, "max_seats");
-  result.max_domains = get_optional_int64(wire, "max_domains");
-  result.seats_in_use = get_optional_int64(wire, "seats_in_use");
-  result.expires_at = get_optional_string(wire, "expires_at");
   result.entitlement = entitlement_from_string(wire.get_string("entitlement").value_or(""));
-  result.fallback = wire.get_bool("fallback").value_or(false);
   result.feature_flags = get_feature_flags(wire);
+  if (const auto* license = wire.find("license"); license != nullptr && license->is_object()) {
+    result.license.plan_id = get_optional_string(*license, "plan_id");
+    if (auto mode = get_optional_string(*license, "activation_mode")) {
+      result.license.activation_mode = activation_type_from_string(*mode);
+    }
+    result.license.max_seats = get_optional_int64(*license, "max_seats");
+    result.license.max_domains = get_optional_int64(*license, "max_domains");
+    result.license.seats_in_use = get_optional_int64(*license, "seats_in_use");
+    result.license.expires_at = get_optional_string(*license, "expires_at");
+  }
   return result;
 }
 
@@ -426,11 +426,13 @@ void ClientCore::token(const std::string& license_key, std::function<void(Result
     const auto& wire = result.value();
     TokenResult token_result;
     token_result.token = wire.get_string("token").value_or("");
-    token_result.algorithm = wire.get_string("algorithm").value_or("");
-    token_result.kid = wire.get_string("kid").value_or("");
-    token_result.issued_at = wire.get_string("issued_at").value_or("");
-    token_result.expires_at = wire.get_string("expires_at").value_or("");
-    token_result.jwks_url = wire.get_string("jwks_url").value_or("");
+    if (const auto* details = wire.find("details"); details != nullptr && details->is_object()) {
+      token_result.details.algorithm = details->get_string("algorithm").value_or("");
+      token_result.details.kid = details->get_string("kid").value_or("");
+      token_result.details.issued_at = details->get_string("issued_at").value_or("");
+      token_result.details.expires_at = details->get_string("expires_at").value_or("");
+      token_result.details.jwks_url = details->get_string("jwks_url").value_or("");
+    }
     emit_token_issued(token_result);
     callback(Result<TokenResult>::ok(std::move(token_result)));
   });
@@ -457,9 +459,11 @@ void ClientCore::activate(const ActivateRequest& request, std::function<void(Res
     const auto& wire = result.value();
     ActivateResult activate_result;
     activate_result.activation_id = wire.get_string("activation_id").value_or("");
-    activate_result.activation_type = activation_type_from_string(wire.get_string("activation_type").value_or(""));
-    activate_result.identifier = wire.get_string("identifier").value_or("");
     activate_result.feature_flags = get_feature_flags(wire);
+    if (const auto* activation = wire.find("activation"); activation != nullptr && activation->is_object()) {
+      activate_result.activation.type = activation_type_from_string(activation->get_string("type").value_or(""));
+      activate_result.activation.identifier = activation->get_string("identifier").value_or("");
+    }
     emit_activated(activate_result);
     callback(Result<ActivateResult>::ok(std::move(activate_result)));
   });

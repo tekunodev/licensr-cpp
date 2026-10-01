@@ -72,28 +72,38 @@ class LICENSR_API Json {
 
 enum class ActivationType { kSeat, kDomain, kUnknown };
 enum class LicenseStatus { kActive, kInactive, kExpired, kUnknown };
-// `kFull` when valid, `kNone` when cut off, `kLimited` alongside
-// `fallback == true`.
+// `kFull` when valid, `kNone` when cut off, `kLimited` when an expired license
+// on a fallback plan keeps reduced access.
 enum class Entitlement { kFull, kLimited, kNone, kUnknown };
 
 LICENSR_API std::string to_string(ActivationType value);
 LICENSR_API std::string to_string(LicenseStatus value);
 LICENSR_API std::string to_string(Entitlement value);
 
-struct LICENSR_API ValidateResult {
-  bool valid = false;
-  LicenseStatus status = LicenseStatus::kUnknown;
+// Information about the license. Nothing here decides access; safe to ignore.
+struct LICENSR_API LicenseDetails {
   std::optional<std::string> plan_id;
-  std::optional<std::string> plan_name;
   std::optional<ActivationType> activation_mode;
+  // Devices or users allowed. Empty means unlimited.
   std::optional<std::int64_t> max_seats;
+  // Websites allowed. Empty means unlimited.
   std::optional<std::int64_t> max_domains;
   std::optional<std::int64_t> seats_in_use;
+  // When the license expires. Empty means it never expires.
   std::optional<std::string> expires_at;
+};
+
+struct LICENSR_API ValidateResult {
+  // The answer you gate on: true unlocks your product, false keeps it locked.
+  bool valid = false;
+  // Why: pick the message to show the customer. Do not gate access on it.
+  LicenseStatus status = LicenseStatus::kUnknown;
+  // Optional. kLimited means expired but a fallback plan keeps reduced access.
   Entitlement entitlement = Entitlement::kUnknown;
-  // `true` only when an *expired* license is on a perpetual-fallback plan.
-  bool fallback = false;
+  // Optional. Custom per-plan settings you defined.
   Json feature_flags;
+  // Plan, limits and expiry. Informational only.
+  LicenseDetails license;
 };
 
 struct LICENSR_API ActivateRequest {
@@ -105,11 +115,17 @@ struct LICENSR_API ActivateRequest {
   std::optional<std::string> label;
 };
 
-struct LICENSR_API ActivateResult {
-  std::string activation_id;
-  ActivationType activation_type = ActivationType::kSeat;
+// What was activated (an echo of your request). Informational only.
+struct LICENSR_API ActivationInfo {
+  ActivationType type = ActivationType::kSeat;
   std::string identifier;
+};
+
+struct LICENSR_API ActivateResult {
+  // Save this: you need it to deactivate later.
+  std::string activation_id;
   Json feature_flags;
+  ActivationInfo activation;
 };
 
 struct LICENSR_API DeactivateResult {
@@ -130,15 +146,20 @@ struct LICENSR_API ActivationsResult {
   std::vector<ActivationListItem> activations;
 };
 
-struct LICENSR_API TokenResult {
-  // EdDSA-signed JWT. Verify against the plugin's JWKS (`jwks_url`) —
-  // offline verification support lands in a follow-up SDK module.
-  std::string token;
+// How to verify the offline token and when to refresh it.
+struct LICENSR_API TokenDetails {
   std::string algorithm;
   std::string kid;
   std::string issued_at;
   std::string expires_at;
   std::string jwks_url;
+};
+
+struct LICENSR_API TokenResult {
+  // EdDSA-signed JWT. Verify against the plugin's JWKS (`details.jwks_url`) —
+  // offline verification support lands in a follow-up SDK module.
+  std::string token;
+  TokenDetails details;
 };
 
 struct LICENSR_API CheckoutRequest {
@@ -268,7 +289,7 @@ class LICENSR_API Client {
   void validate(const std::string& license_key, std::function<void(Result<ValidateResult>)> callback);
 
   // Run the same check as `validate`, and on success mint a short-lived
-  // EdDSA-signed offline token (`token.jwks_url` publishes the verification
+  // EdDSA-signed offline token (`token.details.jwks_url` publishes the verification
   // key).
   void token(const std::string& license_key, std::function<void(Result<TokenResult>)> callback);
 

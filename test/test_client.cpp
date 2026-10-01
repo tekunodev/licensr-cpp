@@ -102,14 +102,14 @@ LICENSR_TEST(validate_maps_wire_json_to_the_public_result_struct) {
   transport->queue_response(json_response(200, R"({
     "valid": true,
     "status": "active",
-    "plan_id": "plan_pro",
-    "plan_name": "Pro",
-    "activation_mode": "seat",
-    "max_seats": 5,
-    "seats_in_use": 2,
     "entitlement": "full",
-    "fallback": false,
-    "feature_flags": {"beta_dsp": true}
+    "feature_flags": {"beta_dsp": true},
+    "license": {
+      "plan_id": "plan_pro",
+      "activation_mode": "seat",
+      "max_seats": 5,
+      "seats_in_use": 2
+    }
   })"));
 
   licensr::Client client(make_config(transport));
@@ -120,8 +120,8 @@ LICENSR_TEST(validate_maps_wire_json_to_the_public_result_struct) {
   LICENSR_EXPECT_TRUE(result.ok());
   LICENSR_EXPECT_TRUE(result.value().valid);
   LICENSR_EXPECT_TRUE(result.value().status == licensr::LicenseStatus::kActive);
-  LICENSR_EXPECT_EQ(result.value().plan_id.value_or(""), std::string("plan_pro"));
-  LICENSR_EXPECT_EQ(result.value().max_seats.value_or(-1), std::int64_t{5});
+  LICENSR_EXPECT_EQ(result.value().license.plan_id.value_or(""), std::string("plan_pro"));
+  LICENSR_EXPECT_EQ(result.value().license.max_seats.value_or(-1), std::int64_t{5});
   LICENSR_EXPECT_TRUE(result.value().entitlement == licensr::Entitlement::kFull);
   LICENSR_EXPECT_TRUE(result.value().feature_flags.find("beta_dsp") != nullptr);
 
@@ -129,6 +129,54 @@ LICENSR_TEST(validate_maps_wire_json_to_the_public_result_struct) {
   auto snapshot = client.snapshot();
   LICENSR_EXPECT_TRUE(snapshot != nullptr);
   LICENSR_EXPECT_TRUE(snapshot->valid);
+}
+
+LICENSR_TEST(activate_maps_nested_activation_info) {
+  auto transport = std::make_shared<StubHttpTransport>();
+  transport->queue_response(json_response(200, R"({
+    "activation_id": "act-1",
+    "feature_flags": {"pro": true},
+    "activation": {"type": "domain", "identifier": "example.com"}
+  })"));
+
+  licensr::Client client(make_config(transport));
+  Waiter<licensr::ActivateResult> waiter;
+  licensr::ActivateRequest request;
+  request.license_key = "LIC-KEY";
+  request.activation_type = licensr::ActivationType::kDomain;
+  request.identifier = "example.com";
+  client.activate(request, waiter.callback());
+  auto result = waiter.wait();
+
+  LICENSR_EXPECT_TRUE(result.ok());
+  LICENSR_EXPECT_EQ(result.value().activation_id, std::string("act-1"));
+  LICENSR_EXPECT_TRUE(result.value().activation.type == licensr::ActivationType::kDomain);
+  LICENSR_EXPECT_EQ(result.value().activation.identifier, std::string("example.com"));
+  LICENSR_EXPECT_TRUE(result.value().feature_flags.find("pro") != nullptr);
+}
+
+LICENSR_TEST(token_maps_nested_details) {
+  auto transport = std::make_shared<StubHttpTransport>();
+  transport->queue_response(json_response(200, R"({
+    "token": "jwt-value",
+    "details": {
+      "algorithm": "EdDSA",
+      "kid": "kid-1",
+      "issued_at": "2027-01-01T00:00:00Z",
+      "expires_at": "2027-02-01T00:00:00Z",
+      "jwks_url": "https://api.example.test/v1/license/jwks/acme/demo.json"
+    }
+  })"));
+
+  licensr::Client client(make_config(transport));
+  Waiter<licensr::TokenResult> waiter;
+  client.token("LIC-KEY", waiter.callback());
+  auto result = waiter.wait();
+
+  LICENSR_EXPECT_TRUE(result.ok());
+  LICENSR_EXPECT_EQ(result.value().token, std::string("jwt-value"));
+  LICENSR_EXPECT_EQ(result.value().details.kid, std::string("kid-1"));
+  LICENSR_EXPECT_EQ(result.value().details.jwks_url, std::string("https://api.example.test/v1/license/jwks/acme/demo.json"));
 }
 
 LICENSR_TEST(validate_retries_on_5xx_then_succeeds) {
