@@ -56,6 +56,8 @@ if (auto snapshot = client.snapshot()) {
 }
 ```
 
+The result keeps what you act on at the top level: `valid`, `status` (why, for your message), `entitlement` and `feature_flags`. Plan and limit details are grouped under `result.license` (`plan_id`, `activation_mode`, `max_seats`, `max_domains`, `seats_in_use`, `expires_at`). They are for display only; never use them to decide whether to unlock.
+
 ## API
 
 Every method is asynchronous and calls `callback` from Licensr's worker thread with a `Result<T>` — never both a value and an error, and never thrown.
