@@ -22,7 +22,7 @@ If no tag is published yet, vendor `sdks/cpp/` and `add_subdirectory(...)`.
 include(FetchContent)
 FetchContent_Declare(licensr
     GIT_REPOSITORY https://github.com/tekunodev/licensr-cpp.git
-    GIT_TAG v0.1.0
+    GIT_TAG v0.2.0
 )
 FetchContent_MakeAvailable(licensr)
 target_link_libraries(your_plugin PRIVATE licensr::licensr)
