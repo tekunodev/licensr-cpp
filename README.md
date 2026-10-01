@@ -2,7 +2,7 @@
 
 Official C++ SDK for the [Licensr](https://licensr.app) license API, built for audio plugins and other native, closed-source hosts. Zero third-party dependencies: no OpenSSL, no nlohmann/json, no networking library — everything the SDK needs (JSON, HTTP, and the Ed25519 primitives that the upcoming offline-verify module will use) is either vendored and trimmed to the minimum or backed by the OS's own networking stack.
 
-See the [plugin integration guide](https://docs.licensr.app/plugin-integration) for the underlying API's concepts (activation modes, entitlement/fallback, rate limits, the embedded-key doctrine) — this README covers the C++-specific surface.
+See the [License calls guide](https://docs.licensr.app/plugin-integration) for the underlying API's concepts (activation modes, entitlement/fallback, rate limits, the embedded-key doctrine) — this README covers the C++-specific surface.
 
 ## Why this SDK looks the way it does
 
@@ -34,7 +34,7 @@ target_link_libraries(your_plugin PRIVATE licensr::licensr)
 #include <licensr/licensr.h>
 
 licensr::ClientConfig config;
-config.api_key = "pk_live_...";  // safe to embed in a distributed binary — see the plugin integration guide
+config.api_key = "pk_live_...";  // safe to embed in a distributed binary — see the License calls guide
 config.plugin_slug = "my-plugin";
 
 licensr::Client client(config);
@@ -62,14 +62,14 @@ The result keeps what you act on at the top level: `valid`, `status` (why, for y
 
 Every method is asynchronous and calls `callback` from Licensr's worker thread with a `Result<T>` — never both a value and an error, and never thrown.
 
-| Method                                          | Wraps                          | Notes                                                                                                             |
-| ------------------------------------------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `client.validate(licenseKey, callback)`          | `POST /v1/license/validate`    | Always read `valid`/`entitlement`; never branch on HTTP status — an unknown key returns `200 {valid: false}`.      |
-| `client.token(licenseKey, callback)`             | `POST /v1/license/token`       | Same check as `validate`, plus a short-lived signed offline token. Offline verification lands in a follow-up SDK module — for now, verify server-side or via the JS/TS SDK's `verifyOfflineToken`. |
-| `client.activate(request, callback)`             | `POST /v1/license/activate`    | `activation_type` is `kSeat` (per-machine) or `kDomain`, fixed by the plugin's configured mode.                    |
-| `client.deactivate(licenseKey, activationId, callback)` | `POST /v1/license/deactivate` | Frees a seat/domain slot.                                                                                            |
-| `client.activations(licenseKey, callback)`       | `GET /v1/license/activations`  | Lists every current activation.                                                                                    |
-| `client.checkout(request, callback)`             | `POST /v1/billing/checkout`    | Returns `checkout_url` — direct the user there. Requires a key with the `checkout` scope.                          |
+| Method                                                  | Wraps                         | Notes                                                                                                                                                                                              |
+| ------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client.validate(licenseKey, callback)`                 | `POST /v1/license/validate`   | Always read `valid`/`entitlement`; never branch on HTTP status — an unknown key returns `200 {valid: false}`.                                                                                      |
+| `client.token(licenseKey, callback)`                    | `POST /v1/license/token`      | Same check as `validate`, plus a short-lived signed offline token. Offline verification lands in a follow-up SDK module — for now, verify server-side or via the JS/TS SDK's `verifyOfflineToken`. |
+| `client.activate(request, callback)`                    | `POST /v1/license/activate`   | `activation_type` is `kSeat` (per-machine) or `kDomain`, fixed by the plugin's configured mode.                                                                                                    |
+| `client.deactivate(licenseKey, activationId, callback)` | `POST /v1/license/deactivate` | Frees a seat/domain slot.                                                                                                                                                                          |
+| `client.activations(licenseKey, callback)`              | `GET /v1/license/activations` | Lists every current activation.                                                                                                                                                                    |
+| `client.checkout(request, callback)`                    | `POST /v1/billing/checkout`   | Returns `checkout_url` — direct the user there. Requires a key with the `checkout` scope.                                                                                                          |
 
 ### Client options
 
@@ -139,7 +139,7 @@ if (auto cached = store.load(license_key)) {
 }
 ```
 
-AUv3 app extensions run in their own sandboxed container, separate from the host app's — the default path above resolves to the *extension's* container, not the host's. Pass an explicit `base_dir` (your app group's shared container, or the extension's own Application Support directory) in that case:
+AUv3 app extensions run in their own sandboxed container, separate from the host app's — the default path above resolves to the _extension's_ container, not the host's. Pass an explicit `base_dir` (your app group's shared container, or the extension's own Application Support directory) in that case:
 
 ```cpp
 licensr::FileTokenStore store(config.plugin_slug, auv3_container_path);
@@ -173,12 +173,12 @@ find include src test \( -name '*.h' -o -name '*.cpp' -o -name '*.mm' \) -print0
 
 Build options (`-D<name>=<value>`):
 
-| Option                     | Default | Notes                                                                 |
-| --------------------------- | ------- | ---------------------------------------------------------------------- |
-| `LICENSR_BUILD_SHARED`      | `OFF`   | Static by default; audio plugins typically want static linking.       |
-| `LICENSR_HTTP_BACKEND`      | `AUTO`  | `WINHTTP`, `NSURLSESSION`, `CURL`, or `NONE` (bring your own).         |
-| `LICENSR_BUILD_TESTS`       | `ON`    | Builds `test/` and registers it with `ctest`.                         |
-| `LICENSR_MSVC_RUNTIME_LIBRARY` (MSVC only) | `MultiThreaded$<$<CONFIG:Debug>:Debug>DLL` | Match whatever CRT the rest of your plugin project uses. |
+| Option                                     | Default                                    | Notes                                                           |
+| ------------------------------------------ | ------------------------------------------ | --------------------------------------------------------------- |
+| `LICENSR_BUILD_SHARED`                     | `OFF`                                      | Static by default; audio plugins typically want static linking. |
+| `LICENSR_HTTP_BACKEND`                     | `AUTO`                                     | `WINHTTP`, `NSURLSESSION`, `CURL`, or `NONE` (bring your own).  |
+| `LICENSR_BUILD_TESTS`                      | `ON`                                       | Builds `test/` and registers it with `ctest`.                   |
+| `LICENSR_MSVC_RUNTIME_LIBRARY` (MSVC only) | `MultiThreaded$<$<CONFIG:Debug>:Debug>DLL` | Match whatever CRT the rest of your plugin project uses.        |
 
 For a macOS universal build: `cmake -S . -B build -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"`.
 
