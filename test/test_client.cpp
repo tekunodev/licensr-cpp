@@ -176,7 +176,8 @@ LICENSR_TEST(token_maps_nested_details) {
   LICENSR_EXPECT_TRUE(result.ok());
   LICENSR_EXPECT_EQ(result.value().token, std::string("jwt-value"));
   LICENSR_EXPECT_EQ(result.value().details.kid, std::string("kid-1"));
-  LICENSR_EXPECT_EQ(result.value().details.jwks_url, std::string("https://api.example.test/v1/license/jwks/acme/demo.json"));
+  LICENSR_EXPECT_EQ(result.value().details.jwks_url,
+                    std::string("https://api.example.test/v1/license/jwks/acme/demo.json"));
 }
 
 LICENSR_TEST(validate_retries_on_5xx_then_succeeds) {
