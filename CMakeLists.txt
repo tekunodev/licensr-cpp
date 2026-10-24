@@ -84,6 +84,9 @@ add_library(licensr::licensr ALIAS licensr)
 
 target_compile_definitions(licensr PRIVATE LICENSR_BUILDING)
 
+# Public headers use std::optional, so consumers need C++17 too.
+target_compile_features(licensr PUBLIC cxx_std_17)
+
 target_include_directories(licensr
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
