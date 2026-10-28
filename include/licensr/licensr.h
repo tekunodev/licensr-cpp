@@ -167,10 +167,16 @@ struct LICENSR_API CheckoutRequest {
   std::string customer_email;
   std::optional<std::string> success_url;
   std::optional<std::string> cancel_url;
+  // Test keys (`pk_test_...`) only. Puts the buyer on a new Stripe test
+  // clock you can fast-forward to try renewals. False leaves it out of the
+  // request body.
+  bool test_clock = false;
 };
 
 struct LICENSR_API CheckoutResult {
   std::string checkout_url;
+  // The Stripe test clock the buyer is on, when `test_clock` asked for one.
+  std::optional<std::string> test_clock_id;
 };
 
 enum class ErrorKind {

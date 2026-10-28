@@ -180,6 +180,37 @@ LICENSR_TEST(token_maps_nested_details) {
                     std::string("https://api.example.test/v1/license/jwks/acme/demo.json"));
 }
 
+LICENSR_TEST(checkout_sends_test_clock_only_when_asked_and_maps_test_clock_id) {
+  auto transport = std::make_shared<StubHttpTransport>();
+  transport->queue_response(json_response(200, R"({"checkout_url": "https://pay.example/1", "test_clock_id": null})"));
+  transport->queue_response(
+      json_response(200, R"({"checkout_url": "https://pay.example/2", "test_clock_id": "clock_123"})"));
+
+  licensr::Client client(make_config(transport));
+  licensr::CheckoutRequest request;
+  request.plan_id = "plan_pro";
+  request.customer_email = "buyer@example.com";
+
+  Waiter<licensr::CheckoutResult> plain;
+  client.checkout(request, plain.callback());
+  auto plain_result = plain.wait();
+  LICENSR_EXPECT_TRUE(plain_result.ok());
+  LICENSR_EXPECT_EQ(plain_result.value().checkout_url, std::string("https://pay.example/1"));
+  LICENSR_EXPECT_FALSE(plain_result.value().test_clock_id.has_value());
+
+  request.test_clock = true;
+  Waiter<licensr::CheckoutResult> clocked;
+  client.checkout(request, clocked.callback());
+  auto clocked_result = clocked.wait();
+  LICENSR_EXPECT_TRUE(clocked_result.ok());
+  LICENSR_EXPECT_EQ(clocked_result.value().test_clock_id.value_or(""), std::string("clock_123"));
+
+  std::lock_guard<std::mutex> lock(transport->mutex_);
+  LICENSR_EXPECT_EQ(transport->requests.size(), std::size_t{2});
+  LICENSR_EXPECT_TRUE(transport->requests[0].body.find("test_clock") == std::string::npos);
+  LICENSR_EXPECT_TRUE(transport->requests[1].body.find(R"("test_clock":true)") != std::string::npos);
+}
+
 LICENSR_TEST(validate_retries_on_5xx_then_succeeds) {
   auto transport = std::make_shared<StubHttpTransport>();
   transport->queue_response(json_response(503, "server unavailable"));

@@ -527,6 +527,10 @@ void ClientCore::checkout(const CheckoutRequest& request, std::function<void(Res
   body.set("customer_email", licensr::detail::Json(request.customer_email));
   body.set("success_url", request.success_url ? licensr::detail::Json(*request.success_url) : licensr::detail::Json());
   body.set("cancel_url", request.cancel_url ? licensr::detail::Json(*request.cancel_url) : licensr::detail::Json());
+  // Sent only when asked for, so servers without test clocks see the same body.
+  if (request.test_clock) {
+    body.set("test_clock", licensr::detail::Json(true));
+  }
 
   enqueue([this, body = body.dump(), callback = std::move(callback)]() {
     auto result = perform_with_retry("checkout", PreparedRequest{HttpMethod::kPost, "v1/billing/checkout", {}, body});
@@ -536,6 +540,7 @@ void ClientCore::checkout(const CheckoutRequest& request, std::function<void(Res
     }
     CheckoutResult checkout_result;
     checkout_result.checkout_url = result.value().get_string("checkout_url").value_or("");
+    checkout_result.test_clock_id = get_optional_string(result.value(), "test_clock_id");
     callback(Result<CheckoutResult>::ok(std::move(checkout_result)));
   });
 }

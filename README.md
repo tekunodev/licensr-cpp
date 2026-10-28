@@ -71,6 +71,8 @@ Every method is asynchronous and calls `callback` from Licensr's worker thread w
 | `client.activations(licenseKey, callback)`              | `GET /v1/license/activations` | Lists every current activation.                                                                                                                                                                    |
 | `client.checkout(request, callback)`                    | `POST /v1/billing/checkout`   | Returns `checkout_url` — direct the user there. Requires a key with the `checkout` scope.                                                                                                          |
 
+With a test key (`pk_test_…`), set `request.test_clock = true` to put the buyer on a Stripe test clock you can fast-forward to try renewals; the result returns its id as `test_clock_id`.
+
 ### Client options
 
 ```cpp
